@@ -21,17 +21,19 @@ jobs:
 
       - name: Install Android SDK & NDK 27
         run: |
-          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          yes | "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
 
       - name: Setup Rust & aarch64 target
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
 
-      - name: Patch assistant linker check
+      - name: Patch assistant NDK path and linker check
         run: |
-          python3 - << 'PYEOF'
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          python3 - << PYEOF
           from pathlib import Path
 
           p = Path("./assistant/build.gradle")
@@ -39,12 +41,12 @@ jobs:
 
           target = 'throw new GradleException("Android NDK arm64 linker tools missing under ${toolchain}")'
           replacement = 'println "Skipping strict linker check under ${toolchain}"'
-
           if target in text:
-              p.write_text(text.replace(target, replacement, 1), encoding="utf-8")
-              print("Patched assistant/build.gradle")
-          else:
-              print("Target line not found, leaving file unchanged")
+              text = text.replace(target, replacement, 1)
+
+          text = text.replace("\${ANDROID_HOME}", "${SDK_ROOT}")
+          p.write_text(text, encoding="utf-8")
+          print("Patched assistant/build.gradle successfully")
           PYEOF
 
       - name: Grant execute permission for gradlew
@@ -52,21 +54,25 @@ jobs:
 
       - name: Build Debug APK
         env:
-          ANDROID_NDK_HOME: "${ANDROID_HOME}/ndk/27.3.13750724"
-          ANDROID_NDK_ROOT: "${ANDROID_HOME}/ndk/27.3.13750724"
           ORG_GRADLE_PROJECT_org.gradle.jvmargs: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: |
-          NDK_BIN="${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          CLANG_BIN="${NDK_BIN}/aarch64-linux-android24-clang"
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          NDK_DIR="${SDK_ROOT}/ndk/27.3.13750724"
+          NDK_BIN="${NDK_DIR}/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CLANG_BIN="${NDK_BIN}/aarch64-linux-android33-clang"
+          [ -x "$CLANG_BIN" ] || CLANG_BIN="${NDK_BIN}/aarch64-linux-android24-clang"
+
+          export ANDROID_HOME="${SDK_ROOT}"
+          export ANDROID_SDK_ROOT="${SDK_ROOT}"
+          export ANDROID_NDK_HOME="${NDK_DIR}"
+          export ANDROID_NDK_ROOT="${NDK_DIR}"
           export PATH="${NDK_BIN}:${PATH}"
-          export CC="${CLANG_BIN}"
-          export AR="${NDK_BIN}/llvm-ar"
-          export RANLIB="${NDK_BIN}/llvm-ranlib"
           export CC_aarch64_linux_android="${CLANG_BIN}"
           export CXX_aarch64_linux_android="${CLANG_BIN}++"
           export AR_aarch64_linux_android="${NDK_BIN}/llvm-ar"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CLANG_BIN}"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${NDK_BIN}/llvm-ar"
+
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
