@@ -29,10 +29,15 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Inspect assistant/build.gradle
+      - name: Inspect inner assistant/build.gradle
         run: |
-          sed -n '125,155p' assistant/build.gradle || true
-          ls -la "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin" | grep -E "aarch64|lld|ld" || true
+          TARGET_GRADLE="yuehong-privilege-assistant/assistant/build.gradle"
+          if [ -f "$TARGET_GRADLE" ]; then
+            sed -n '120,155p' "$TARGET_GRADLE"
+          else
+            find . -path "*/assistant/build.gradle" -exec sed -n '120,155p' {} +
+          fi
+          ls -la "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin" | grep -E "aarch64|lld|ld|clang" | head -n 40 || true
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
