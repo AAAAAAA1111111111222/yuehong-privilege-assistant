@@ -57,10 +57,16 @@ jobs:
           ORG_GRADLE_PROJECT_org.gradle.jvmargs: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: |
           NDK_BIN="${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CLANG_BIN="${NDK_BIN}/aarch64-linux-android24-clang"
           export PATH="${NDK_BIN}:${PATH}"
-          export CC_aarch64_linux_android="${NDK_BIN}/aarch64-linux-android24-clang"
+          export CC="${CLANG_BIN}"
+          export AR="${NDK_BIN}/llvm-ar"
+          export RANLIB="${NDK_BIN}/llvm-ranlib"
+          export CC_aarch64_linux_android="${CLANG_BIN}"
+          export CXX_aarch64_linux_android="${CLANG_BIN}++"
           export AR_aarch64_linux_android="${NDK_BIN}/llvm-ar"
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${NDK_BIN}/aarch64-linux-android24-clang"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CLANG_BIN}"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${NDK_BIN}/llvm-ar"
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
