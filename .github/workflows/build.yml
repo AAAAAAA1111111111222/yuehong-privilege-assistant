@@ -36,15 +36,34 @@ jobs:
           NDK_BIN="${SDK_ROOT}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
           if [ -d "$NDK_BIN" ]; then
-            REAL_CLANG="$NDK_BIN/aarch64-linux-android34-clang"
-            if [ ! -x "$REAL_CLANG" ]; then
-              REAL_CLANG="$(ls "$NDK_BIN"/aarch64-linux-android*-clang 2>/dev/null | head -n 1)"
-            fi
-            if [ -n "$REAL_CLANG" ]; then
-              printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$REAL_CLANG" > "$NDK_BIN/aarch64-linux-android34-clang.cmd"
-              chmod +x "$NDK_BIN/aarch64-linux-android34-clang.cmd"
-              echo "Created wrapper: $NDK_BIN/aarch64-linux-android34-clang.cmd -> $REAL_CLANG"
-            fi
+            FALLBACK_CLANG="$(ls "$NDK_BIN"/aarch64-linux-android*-clang 2>/dev/null | head -n 1)"
+            [ -n "$FALLBACK_CLANG" ] || FALLBACK_CLANG="$NDK_BIN/clang"
+
+            for tool in "$NDK_BIN"/*; do
+              [ -f "$tool" ] && [ -x "$tool" ] || continue
+              base="$(basename "$tool")"
+              case "$base" in
+                *.cmd|*.exe) continue ;;
+              esac
+              for ext in .exe .cmd; do
+                wrapper="${tool}${ext}"
+                if [ ! -e "$wrapper" ]; then
+                  printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$tool" > "$wrapper"
+                  chmod +x "$wrapper"
+                fi
+              done
+            done
+
+            for api_clang in "$NDK_BIN"/aarch64-linux-android34-clang "$NDK_BIN"/aarch64-linux-android33-clang; do
+              for ext in .exe .cmd; do
+                if [ ! -e "${api_clang}${ext}" ]; then
+                  printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FALLBACK_CLANG" > "${api_clang}${ext}"
+                  chmod +x "${api_clang}${ext}"
+                fi
+              done
+            done
+
+            echo "Generated .exe/.cmd wrappers in $NDK_BIN"
           fi
 
           python3 - << PYEOF
