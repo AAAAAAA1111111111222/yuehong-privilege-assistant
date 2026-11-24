@@ -62,9 +62,9 @@ jobs:
                 fi
               done
             done
-
-            echo "Generated .exe/.cmd wrappers in $NDK_BIN"
           fi
+
+          grep -rn "buildGhostlockNative\|TARGET_CONFIG_H\|FOPS_OFF\|DIRECT_MAP_BASE" . || true
 
           python3 - << PYEOF
           from pathlib import Path
@@ -78,6 +78,14 @@ jobs:
                   text = text.replace(target, replacement, 1)
               text = text.replace("\${ANDROID_HOME}", "${SDK_ROOT}")
               p.write_text(text, encoding="utf-8")
+
+          for gradle_file in Path(".").rglob("build.gradle*"):
+              raw = gradle_file.read_text(encoding="utf-8", errors="ignore")
+              if "TARGET_CONFIG_H" in raw:
+                  fixed = raw.replace('TARGET_CONFIG_H=\\"', 'TARGET_CONFIG_H="').replace('\\"', '"')
+                  if fixed != raw:
+                      gradle_file.write_text(fixed, encoding="utf-8")
+                      print(f"Fixed TARGET_CONFIG_H escaping in {gradle_file}")
           PYEOF
 
       - name: Grant execute permission for gradlew
