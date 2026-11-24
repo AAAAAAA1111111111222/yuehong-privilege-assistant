@@ -31,25 +31,7 @@ jobs:
 
       - name: Patch assistant linker check
         run: |
-          cat <<'EOF' > /tmp/patch.py
-          from pathlib import Path
-
-          target = Path("./assistant/build.gradle")
-          content = target.read_text(encoding="utf-8")
-
-          old_block = """        if (!clang.isFile() || !ar.isFile()) {
-            throw new GradleException("Android NDK arm64 linker tools missing under ${toolchain}")
-        }"""
-
-          new_block = """        if (!clang.isFile() || !ar.isFile()) {
-            println("WARNING: skipping strict linker check under ${toolchain}")
-        }"""
-
-          assert old_block in content, "old_block not found"
-          target.write_text(content.replace(old_block, new_block, 1), encoding="utf-8")
-          print("Patched assistant/build.gradle successfully")
-          EOF
-          python3 /tmp/patch.py
+          python3 -c 'import pathlib; p = pathlib.Path("./assistant/build.gradle"); s = p.read_text(encoding="utf-8"); old = "throw new GradleException(\"Android NDK arm64 linker tools missing under ${toolchain}\")"; new = "println(\"WARNING: skipping strict linker check under ${toolchain}\")"; assert old in s; p.write_text(s.replace(old, new, 1), encoding="utf-8"); print("Patched assistant/build.gradle successfully")'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
