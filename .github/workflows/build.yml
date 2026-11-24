@@ -19,10 +19,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install SDK 37, Build Tools 36, NDK 29 & CMake
+      - name: Install SDK 36, Build Tools 36, NDK 29 & CMake
         run: |
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.22.1"
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.22.1"
 
       - name: Setup Rust & aarch64 target
         uses: dtolnay/rust-toolchain@stable
