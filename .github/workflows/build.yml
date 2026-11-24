@@ -54,6 +54,11 @@ jobs:
         env:
           ANDROID_NDK_HOME: "${ANDROID_HOME}/ndk/27.3.13750724"
           ANDROID_NDK_ROOT: "${ANDROID_HOME}/ndk/27.3.13750724"
+          NDK_TOOLCHAIN_BIN: "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          PATH: "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+          CC_aarch64_linux_android: "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          AR_aarch64_linux_android: "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
           ORG_GRADLE_PROJECT_org.gradle.jvmargs: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: ./gradlew assembleDebug --no-daemon
 
@@ -63,3 +68,4 @@ jobs:
           name: yuehong-debug-apk
           path: "**/*.apk"
           if-no-files-found: error
+          
