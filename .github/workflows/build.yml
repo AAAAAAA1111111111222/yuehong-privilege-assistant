@@ -29,15 +29,15 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Inspect inner assistant/build.gradle
+      - name: Inspect and patch buildDirtyFragVrExtract check
         run: |
-          TARGET_GRADLE="yuehong-privilege-assistant/assistant/build.gradle"
-          if [ -f "$TARGET_GRADLE" ]; then
-            sed -n '120,155p' "$TARGET_GRADLE"
-          else
-            find . -path "*/assistant/build.gradle" -exec sed -n '120,155p' {} +
-          fi
-          ls -la "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin" | grep -E "aarch64|lld|ld|clang" | head -n 40 || true
+          pwd
+          find . -maxdepth 4 -name "build.gradle" -o -name "build.gradle.kts"
+          grep -rn -C 12 "buildDirtyFragVrExtract\|linker tools missing" . || true
+          for f in $(find . -path "*/assistant/build.gradle"); do
+            echo "=== $f ==="
+            nl -ba "$f" | sed -n '120,155p'
+          done
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
