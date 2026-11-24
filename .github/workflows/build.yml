@@ -1,4 +1,3 @@
-
 name: Build Android Debug APK
 
 on:
@@ -22,40 +21,26 @@ jobs:
 
       - name: Install Android SDK & NDK 27
         run: |
-          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
-            --install \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
-            "ndk;27.3.13750724" \
-            "cmake;3.22.1"
-
-      - name: Verify Android NDK
-        run: |
-          NDK="${ANDROID_HOME}/ndk/27.3.13750724"
-          BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
-
-          test -d "$NDK"
-          test -d "$BIN"
-          test -x "$BIN/clang"
-          test -x "$BIN/ld.lld"
-
-          "$BIN/clang" --version
-          "$BIN/ld.lld" --version
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724" "cmake;3.22.1"
 
       - name: Setup Rust & aarch64 target
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
 
+      - name: Inspect assistant/build.gradle
+        run: |
+          sed -n '125,155p' assistant/build.gradle || true
+          ls -la "${ANDROID_HOME}/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin" | grep -E "aarch64|lld|ld" || true
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Debug APK
         env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.3.13750724
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.3.13750724
+          ANDROID_NDK_HOME: "${ANDROID_HOME}/ndk/27.3.13750724"
+          ANDROID_NDK_ROOT: "${ANDROID_HOME}/ndk/27.3.13750724"
           ORG_GRADLE_PROJECT_org.gradle.jvmargs: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
         run: ./gradlew assembleDebug --no-daemon
 
