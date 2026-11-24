@@ -35,7 +35,8 @@ jobs:
       - name: Build Debug APK
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.13113456
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+          ORG_GRADLE_PROJECT_org.gradle.jvmargs: "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+        run: ./gradlew assembleDebug --no-daemon --info
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -45,4 +46,3 @@ jobs:
             out/apk/**/*.apk
             **/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          
