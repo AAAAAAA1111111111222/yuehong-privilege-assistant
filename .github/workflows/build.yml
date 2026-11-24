@@ -19,13 +19,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install SDK 37, Build Tools 36, NDK 29 & CMake
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          yes | sdkmanager --sdk_root=${ANDROID_SDK_ROOT} "platforms;android-37" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.22.1"
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.22.1"
 
       - name: Setup Rust & aarch64 target
         uses: dtolnay/rust-toolchain@stable
@@ -37,7 +34,7 @@ jobs:
 
       - name: Build Debug APK
         env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/29.0.13113456
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.13113456
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK Artifact
