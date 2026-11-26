@@ -64,9 +64,19 @@ jobs:
             done
           fi
 
-          grep -rn "buildGhostlockNative\|TARGET_CONFIG_H\|FOPS_OFF\|DIRECT_MAP_BASE" . || true
+          echo "=== Inspecting TARGET_CONFIG_H / FOPS_OFF / DIRECT_MAP_BASE ==="
+          grep -rnE "TARGET_CONFIG_H|FOPS_OFF|DIRECT_MAP_BASE|buildGhostlockNative" ghostlock-app third_party/ghostlock assistant 2>/dev/null | head -n 80 || true
+
+          if [ -f "./ghostlock-app/build.gradle" ]; then
+            echo "=== ./ghostlock-app/build.gradle ==="
+            nl -ba ./ghostlock-app/build.gradle
+          elif [ -f "./ghostlock-app/build.gradle.kts" ]; then
+            echo "=== ./ghostlock-app/build.gradle.kts ==="
+            nl -ba ./ghostlock-app/build.gradle.kts
+          fi
 
           python3 - << PYEOF
+          import re
           from pathlib import Path
 
           p = Path("./assistant/build.gradle")
@@ -79,13 +89,21 @@ jobs:
               text = text.replace("\${ANDROID_HOME}", "${SDK_ROOT}")
               p.write_text(text, encoding="utf-8")
 
-          for gradle_file in Path(".").rglob("build.gradle*"):
-              raw = gradle_file.read_text(encoding="utf-8", errors="ignore")
+          for candidate in list(Path(".").rglob("build.gradle*")) + list(Path("ghostlock-app").rglob("*")):
+              if not candidate.is_file() or candidate.suffix in {".cpp", ".hpp", ".h", ".c", ".png", ".jpg"}:
+                  continue
+              raw = candidate.read_text(encoding="utf-8", errors="ignore")
               if "TARGET_CONFIG_H" in raw:
-                  fixed = raw.replace('TARGET_CONFIG_H=\\"', 'TARGET_CONFIG_H="').replace('\\"', '"')
+                  # 確保 -DTARGET_CONFIG_H=... 展開後為合法的 C 字串常數 "kernel/target.h"
+                  fixed = re.sub(
+                      r'(-DTARGET_CONFIG_H=)[\\"\']*(kernel/target\.h)[\\"\']*',
+                      r'\1\\"\\"\2\\"\\"',
+                      raw
+                  )
+                  fixed = fixed.replace('TARGET_CONFIG_H=\\\\"kernel/target.h\\\\"', 'TARGET_CONFIG_H=\\"kernel/target.h\\"')
                   if fixed != raw:
-                      gradle_file.write_text(fixed, encoding="utf-8")
-                      print(f"Fixed TARGET_CONFIG_H escaping in {gradle_file}")
+                      candidate.write_text(fixed, encoding="utf-8")
+                      print(f"Updated TARGET_CONFIG_H in {candidate}")
           PYEOF
 
       - name: Grant execute permission for gradlew
