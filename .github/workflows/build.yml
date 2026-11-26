@@ -64,17 +64,6 @@ jobs:
             done
           fi
 
-          echo "=== Inspecting TARGET_CONFIG_H / FOPS_OFF / DIRECT_MAP_BASE ==="
-          grep -rnE "TARGET_CONFIG_H|FOPS_OFF|DIRECT_MAP_BASE|buildGhostlockNative" ghostlock-app third_party/ghostlock assistant 2>/dev/null | head -n 80 || true
-
-          if [ -f "./ghostlock-app/build.gradle" ]; then
-            echo "=== ./ghostlock-app/build.gradle ==="
-            nl -ba ./ghostlock-app/build.gradle
-          elif [ -f "./ghostlock-app/build.gradle.kts" ]; then
-            echo "=== ./ghostlock-app/build.gradle.kts ==="
-            nl -ba ./ghostlock-app/build.gradle.kts
-          fi
-
           python3 - << PYEOF
           import re
           from pathlib import Path
@@ -89,21 +78,37 @@ jobs:
               text = text.replace("\${ANDROID_HOME}", "${SDK_ROOT}")
               p.write_text(text, encoding="utf-8")
 
-          for candidate in list(Path(".").rglob("build.gradle*")) + list(Path("ghostlock-app").rglob("*")):
-              if not candidate.is_file() or candidate.suffix in {".cpp", ".hpp", ".h", ".c", ".png", ".jpg"}:
-                  continue
-              raw = candidate.read_text(encoding="utf-8", errors="ignore")
-              if "TARGET_CONFIG_H" in raw:
-                  # 確保 -DTARGET_CONFIG_H=... 展開後為合法的 C 字串常數 "kernel/target.h"
-                  fixed = re.sub(
-                      r'(-DTARGET_CONFIG_H=)[\\"\']*(kernel/target\.h)[\\"\']*',
-                      r'\1\\"\\"\2\\"\\"',
-                      raw
+          ghostlock_gradle = Path("./third_party/ghostlock/app/build.gradle")
+          if ghostlock_gradle.exists():
+              gtext = ghostlock_gradle.read_text(encoding="utf-8")
+              gtext_fixed = re.sub(
+                  r"def targetConfigDefine\s*=.*",
+                  "def targetConfigDefine = '-DTARGET_CONFIG_H=\"kernel/target.h\"'",
+                  gtext,
+              )
+              if gtext_fixed != gtext:
+                  ghostlock_gradle.write_text(gtext_fixed, encoding="utf-8")
+                  print("Fixed targetConfigDefine in third_party/ghostlock/app/build.gradle")
+              else:
+                  print("targetConfigDefine line not matched; printing lines 185-215:")
+                  for idx, line in enumerate(gtext.splitlines(), 1):
+                      if 185 <= idx <= 215:
+                          print(f"{idx}: {line}")
+
+          constants_hpp = Path("./third_party/ghostlock/src/core/kernel/constants.hpp")
+          if constants_hpp.exists():
+              ctext = constants_hpp.read_text(encoding="utf-8")
+              if "PAGE_SIZE" in ctext and "#ifdef PAGE_SIZE" not in ctext:
+                  guard = "#ifdef PAGE_SIZE\n#undef PAGE_SIZE\n#endif\n"
+                  ctext_fixed = re.sub(
+                      r"(\s*inline\s+constexpr\s+unsigned\s+long\s+PAGE_SIZE\b)",
+                      "\n" + guard + r"\1",
+                      ctext,
+                      count=1,
                   )
-                  fixed = fixed.replace('TARGET_CONFIG_H=\\\\"kernel/target.h\\\\"', 'TARGET_CONFIG_H=\\"kernel/target.h\\"')
-                  if fixed != raw:
-                      candidate.write_text(fixed, encoding="utf-8")
-                      print(f"Updated TARGET_CONFIG_H in {candidate}")
+                  if ctext_fixed != ctext:
+                      constants_hpp.write_text(ctext_fixed, encoding="utf-8")
+                      print("Guarded PAGE_SIZE in constants.hpp")
           PYEOF
 
       - name: Grant execute permission for gradlew
@@ -138,4 +143,3 @@ jobs:
           name: yuehong-debug-apk
           path: "**/*.apk"
           if-no-files-found: error
-          
